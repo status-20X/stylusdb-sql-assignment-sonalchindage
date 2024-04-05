@@ -101,10 +101,61 @@ function createResultRow(
   return resultRow;
 }
 
-function applyGroupBy(data, groupByFields, aggregateFunctions) {
-  // Implement logic to group data and calculate aggregates
-  // ...
+function evaluateCondition(row, clause) {
+  let { field, operator, value } = clause;
 
+  // Check if the field exists in the row
+  if (row[field] === undefined) {
+    throw new Error(`Invalid field: ${field}`);
+  }
+
+  // Parse row value and condition value based on their actual types
+  const rowValue = parseValue(row[field]);
+  let conditionValue = parseValue(value);
+
+  switch (operator) {
+    case "=":
+      return rowValue === conditionValue;
+    case "!=":
+      return rowValue !== conditionValue;
+    case ">":
+      return rowValue > conditionValue;
+    case "<":
+      return rowValue < conditionValue;
+    case ">=":
+      return rowValue >= conditionValue;
+    case "<=":
+      return rowValue <= conditionValue;
+    default:
+      throw new Error(`Unsupported operator: ${operator}`);
+  }
+}
+
+// Helper function to parse value based on its apparent type
+function parseValue(value) {
+  // Return null or undefined as is
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  // If the value is a string enclosed in single or double quotes, remove them
+  if (
+    typeof value === "string" &&
+    ((value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"')))
+  ) {
+    value = value.substring(1, value.length - 1);
+  }
+
+  // Check if value is a number
+  if (!isNaN(value) && value.trim() !== "") {
+    return Number(value);
+  }
+  // Assume value is a string if not a number
+  return value;
+}
+
+function applyGroupBy(data, groupByFields, aggregateFunctions) {
   const groupResults = {};
 
   data.forEach((row) => {
@@ -191,6 +242,7 @@ async function executeSELECTQuery(query) {
     joinCondition,
     groupByFields,
     hasAggregateWithoutGroupBy,
+    orderByFields,
   } = parseQuery(query);
   let data = await readCSV(`${table}.csv`);
 
@@ -211,9 +263,6 @@ async function executeSELECTQuery(query) {
         throw new Error(`Unsupported JOIN type: ${joinType}`);
     }
   }
-
-  console.log("AFTER JOIN", data);
-  console.log("WHERE CLAUSES", whereClauses);
   // Apply WHERE clause filtering after JOIN (or on the original data if no join)
   let filteredData =
     whereClauses.length > 0
@@ -222,27 +271,14 @@ async function executeSELECTQuery(query) {
         )
       : data;
 
-  if (groupByFields) {
-    data = applyGroupBy(data, groupByFields, fields);
-  }
-
-  // console.log("AFTER WHERE", filteredData);
-
-  // Select the specified fields
-  //return filteredData.map((row) => {
-  //  const selectedRow = {};
-
   let groupResults = filteredData;
-  console.log({ hasAggregateWithoutGroupBy });
   if (hasAggregateWithoutGroupBy) {
     // Special handling for queries like 'SELECT COUNT(*) FROM table'
     const result = {};
 
-    console.log({ filteredData });
-    fields.forEach((field) => {
-      // Assuming 'field' is just the column name without table prefix
-      //selectedRow[field] = row[field];
+    // console.log({ filteredData })
 
+    fields.forEach((field) => {
       const match = /(\w+)\((\*|\w+)\)/.exec(field);
       if (match) {
         const [, aggFunc, aggField] = match;
@@ -282,10 +318,34 @@ async function executeSELECTQuery(query) {
     // Add more cases here if needed for other aggregates
   } else if (groupByFields) {
     groupResults = applyGroupBy(filteredData, groupByFields, fields);
+
+    // Order them by the specified fields
+    let orderedResults = groupResults;
+    if (orderByFields) {
+      orderedResults = groupResults.sort((a, b) => {
+        for (let { fieldName, order } of orderByFields) {
+          if (a[fieldName] < b[fieldName]) return order === "ASC" ? -1 : 1;
+          if (a[fieldName] > b[fieldName]) return order === "ASC" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
     return groupResults;
   } else {
+    // Order them by the specified fields
+    let orderedResults = groupResults;
+    if (orderByFields) {
+      orderedResults = groupResults.sort((a, b) => {
+        for (let { fieldName, order } of orderByFields) {
+          if (a[fieldName] < b[fieldName]) return order === "ASC" ? -1 : 1;
+          if (a[fieldName] > b[fieldName]) return order === "ASC" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
     // Select the specified fields
-    return groupResults.map((row) => {
+    return orderedResults.map((row) => {
       const selectedRow = {};
       fields.forEach((field) => {
         // Assuming 'field' is just the column name without table prefix
@@ -294,62 +354,6 @@ async function executeSELECTQuery(query) {
       return selectedRow;
     });
   }
-}
-
-function evaluateCondition(row, clause) {
-  let { field, operator, value } = clause;
-
-  // Check if the field exists in the row
-  if (row[field] === undefined) {
-    throw new Error(`Invalid field: ${field}`);
-  }
-
-  // Parse row value and condition value based on their actual types
-  const rowValue = parseValue(row[field]);
-  let conditionValue = parseValue(value);
-
-  // console.log("EVALUATING", rowValue, operator, conditionValue, typeof (rowValue), typeof (conditionValue));
-
-  switch (operator) {
-    case "=":
-      return rowValue === conditionValue;
-    case "!=":
-      return rowValue !== conditionValue;
-    case ">":
-      return rowValue > conditionValue;
-    case "<":
-      return rowValue < conditionValue;
-    case ">=":
-      return rowValue >= conditionValue;
-    case "<=":
-      return rowValue <= conditionValue;
-    default:
-      throw new Error(`Unsupported operator: ${operator}`);
-  }
-}
-
-// Helper function to parse value based on its apparent type
-function parseValue(value) {
-  // Return null or undefined as is
-  if (value === null || value === undefined) {
-    return value;
-  }
-
-  // If the value is a string enclosed in single or double quotes, remove them
-  if (
-    typeof value === "string" &&
-    ((value.startsWith("'") && value.endsWith("'")) ||
-      (value.startsWith('"') && value.endsWith('"')))
-  ) {
-    value = value.substring(1, value.length - 1);
-  }
-
-  // Check if value is a number
-  if (!isNaN(value) && value.trim() !== "") {
-    return Number(value);
-  }
-  // Assume value is a string if not a number
-  return value;
 }
 
 module.exports = executeSELECTQuery;
