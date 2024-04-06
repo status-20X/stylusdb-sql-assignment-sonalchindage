@@ -55,13 +55,13 @@ test("Execute SQL Query with INNER JOIN", async () => {
     "SELECT student.name, enrollment.course FROM student INNER JOIN enrollment ON student.id=enrollment.student_id";
   const result = await executeSELECTQuery(query);
   /*
-    result = [
-      { 'student.name': 'John', 'enrollment.course': 'Mathematics' },
-      { 'student.name': 'John', 'enrollment.course': 'Physics' },
-      { 'student.name': 'Jane', 'enrollment.course': 'Chemistry' },
-      { 'student.name': 'Bob', 'enrollment.course': 'Mathematics' }
-    ]
-    */
+  result = [
+    { 'student.name': 'John', 'enrollment.course': 'Mathematics' },
+    { 'student.name': 'John', 'enrollment.course': 'Physics' },
+    { 'student.name': 'Jane', 'enrollment.course': 'Chemistry' },
+    { 'student.name': 'Bob', 'enrollment.course': 'Mathematics' }
+  ]
+  */
   expect(result.length).toEqual(4);
   // toHaveProperty is not working here due to dot in the property name
   expect(result[0]).toEqual(
@@ -77,19 +77,19 @@ test("Execute SQL Query with INNER JOIN and a WHERE Clause", async () => {
     "SELECT student.name, enrollment.course, student.age FROM student INNER JOIN enrollment ON student.id = enrollment.student_id WHERE student.age > 25";
   const result = await executeSELECTQuery(query);
   /*
-    result =  [
-      {
-        'student.name': 'John',
-        'enrollment.course': 'Mathematics',
-        'student.age': '30'
-      },
-      {
-        'student.name': 'John',
-        'enrollment.course': 'Physics',
-        'student.age': '30'
-      }
-    ]
-    */
+  result =  [
+    {
+      'student.name': 'John',
+      'enrollment.course': 'Mathematics',
+      'student.age': '30'
+    },
+    {
+      'student.name': 'John',
+      'enrollment.course': 'Physics',
+      'student.age': '30'
+    }
+  ]
+  */
   expect(result.length).toEqual(2);
   // toHaveProperty is not working here due to dot in the property name
   expect(result[0]).toEqual(
@@ -391,7 +391,6 @@ test("Parse SQL Query with INNER JOIN", async () => {
     limit: null,
   });
 });
-
 test("Parse SQL Query with INNER JOIN and WHERE Clause", async () => {
   const query =
     "SELECT student.name, enrollment.course FROM student INNER JOIN enrollment ON student.id = enrollment.student_id WHERE student.age > 20";
@@ -420,7 +419,6 @@ test("Parse INNER JOIN clause", () => {
     joinCondition: { left: "table1.id", right: "table2.ref_id" },
   });
 });
-
 test("Parse LEFT JOIN clause", () => {
   const query =
     "SELECT * FROM table1 LEFT JOIN table2 ON table1.id = table2.ref_id";

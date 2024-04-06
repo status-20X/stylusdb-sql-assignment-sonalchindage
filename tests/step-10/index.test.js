@@ -284,7 +284,6 @@ test("Count students within a specific age range", async () => {
     { age: "30", "COUNT(*)": 1 },
   ]);
 });
-
 test("Count enrollments for a specific course", async () => {
   const query =
     'SELECT course, COUNT(*) FROM enrollment WHERE course = "Mathematics" GROUP BY course';
